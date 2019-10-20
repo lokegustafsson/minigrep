@@ -6,15 +6,17 @@ pub struct Config {
 
 impl Config {
     pub fn new<T>(mut args: T) -> Result<Config, &'static str> 
-        where T: ExactSizeIterator<Item = String>
+        where T: Iterator<Item = String>
     {
-        if args.len() != 3 {
+        let command = args.next();
+        let expr = args.next();
+        let path = args.next();
+        if command == None || expr == None || path == None || args.next() != None {
             return Err("Usage:\n$ minigrep <string> <file>");
         }
-        args.next();
         Ok(Config {
-            expr: args.next().unwrap(),
-            path: args.next().unwrap(),
+            expr: expr.unwrap(),
+            path: path.unwrap(),
             case_sensitive: true
         })
     }
@@ -26,19 +28,30 @@ pub fn search<'a>(text: &'a str, expr: &str) -> Vec<&'a str> {
         .collect()
 }
 
-#[cfg(tests)]
+#[cfg(test)]
 mod tests {
+    use super::*;
+    use std::vec::IntoIter;
+
+    fn iterify(inp: &str) -> IntoIter<String> {
+        let tmp: Vec<String> = inp.split(' ').map(|s: &str| s.to_string()).collect();
+        tmp.into_iter()
+    }
     #[test]
     fn config_pass() {
-        let config = Config::new("minigrep expr filepath".split(' ')).unwrap();
+        let config = Config::new(iterify("minigrep expr filepath")).unwrap();
         assert_eq!(config.path, "filepath");
         assert_eq!(config.expr, "expr");
         assert_eq!(config.case_sensitive, true);
     }
     #[test]
     fn config_fail() {
-        Config::new("minigrep expr filepath extra".split(' ')).unwrap_err();
-        Config::new("too short").unwrap_err();
+        if let Ok(_) = Config::new(iterify("minigrep expr filepath extra")) {
+            panic!();
+        }
+        if let Ok(_) = Config::new(iterify("too short")) {
+            panic!();
+        }
     }
     #[test]
     fn search1() {
